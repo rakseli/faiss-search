@@ -129,9 +129,9 @@ dmypy.json
 .pyre/
 
 #Largedata or sensitive data
-#data/
-#results/
-#scripts/
+data/
+results/
+scripts/
 *.csv
 *.csv*
 *.png
