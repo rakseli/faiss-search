@@ -127,3 +127,18 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#Largedata or sensitive data
+#data/
+#results/
+#scripts/
+*.csv
+*.csv*
+*.png
+*.jpg
+*.txt
+*.json  
+*.~lock.
+*.pdf
+*.html
+file_paths.py
