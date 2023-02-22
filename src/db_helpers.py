@@ -58,7 +58,7 @@ def select_sentences_document_id(connection, doc_id):
     """
     Query documents by sentences
     :param conn: the Connection object
-    :param priority:
+    :param doc_id:
     :return:
     """
     cur = connection.cursor()

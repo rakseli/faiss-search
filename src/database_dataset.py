@@ -1,12 +1,14 @@
+
 import sqlite3
 import torch
+from torch.utils.data import Dataset,DataLoader 
 from typing import Tuple, List
 from transformers import AutoTokenizer
 from pathlib import Path
 from random import shuffle
 home = str(Path.home())
 
-class DatabaseDataset(torch.utils.data.Dataset):
+class DatabaseDataset(Dataset):
     def __init__(self,tokenizer,device='cuda',dbfile=f"{home}/data/finnish_text/Eduskunta/eduskunta.db",batch_size=1):
         self.connection = sqlite3.connect(dbfile)
         self.cursor = self.connection.cursor()
@@ -20,7 +22,7 @@ class DatabaseDataset(torch.utils.data.Dataset):
 
     def __len__(self) -> int:
         """length method"""
-        return self.n_sentences()
+        return self.n_sentences
 
     def query(self, query_string: str) -> List[Tuple]:
         """run a query and return the result"""
@@ -98,8 +100,8 @@ class DatabaseDataset(torch.utils.data.Dataset):
         meta_data['document_ids']=document_ids
         meta_data['sentence_ids']=sentece_ids
         encoded = self.encode_fn(text)
-        input_data['attention_mask']=torch.tensor(encoded['attention_mask'],device=self.device)
-        input_data['input_ids']=torch.tensor(encoded['input_ids'],device=self.device)
+        input_data['attention_mask']=torch.tensor(encoded['attention_mask'])
+        input_data['input_ids']=torch.tensor(encoded['input_ids'])
         return input_data,meta_data
         
     def __getitem__(self, index):
@@ -115,27 +117,30 @@ class DatabaseDataset(torch.utils.data.Dataset):
         raise ValueError(f"Type of {str(index)} not supported by __getitem()__")
 
 
-    def __iter__(self):
-        return DatabaseIterator(self, batch_size=self.batch_size)
+
+def collate(item_list):
+    """Receives a batch in making. It is a list of dataset items, which are themselves dictionaries with the keys as returned by the dataset
+    since these need to be zero-padded, then this is what we should do now. Is an argument to DataLoader"""
+    items = [i[0] for i in item_list]
+    meta = [i[1] for i in item_list]
+    meta_dict = {}
+    for k in 'sentence_ids','document_ids':
+        meta_dict[k] = [v[k][0] for v in meta]
+    batch = {}
+    for k in "input_ids", "attention_mask":
+        batch[k] = pad_with_zero([item[k] for item in items])
+    return batch,meta_dict
 
 
-class DatabaseIterator:
-    def __init__(self, db_object, batch_size=1):
-        self.ordering = list(range(db_object.n_sentences))
-        self.index = 0
-        self.iterable = db_object
-        self.batch_size = batch_size
-
-    def __next__(self):
-        indexes = self.ordering[self.index : (self.index + self.batch_size)]
-        result = self.iterable[indexes]
-        self.index = self.index + self.batch_size
-        return result
+def pad_with_zero(vals):
+    padded_vals = torch.nn.utils.rnn.pad_sequence(vals, batch_first=True)
+    return padded_vals.to('cuda')
 
 if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("TurkuNLP/bert-base-finnish-cased-v1", padding_side="right",do_lower_case=False)
-    db_dataset = DatabaseDataset(tokenizer,batch_size=5)
-    for i,meta in db_dataset:
+    db_dataset = DatabaseDataset(tokenizer)
+    dataloader = DataLoader(db_dataset,collate_fn=collate,batch_size=5)
+    for i,meta in dataloader:
         print(i)
         print(meta)
         break
