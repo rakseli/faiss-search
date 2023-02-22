@@ -1,11 +1,9 @@
-
-from pathlib import Path
-from random import shuffle
 import sqlite3
 import torch
 from typing import Tuple, List
 from transformers import AutoTokenizer
-
+from pathlib import Path
+from random import shuffle
 home = str(Path.home())
 
 class DatabaseDataset(torch.utils.data.Dataset):

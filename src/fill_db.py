@@ -1,5 +1,5 @@
 from src.get_files import get_files
-from src.create_db import create_connection, create_table, add_document,add_sentence,select_sentences_document_id
+from src.db_helpers import create_connection, create_table, add_document,add_sentence,select_sentences_document_id
 from pathlib import Path
 import ufal.udpipe
 
