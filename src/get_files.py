@@ -39,3 +39,11 @@ def get_files(parent_dir,wanted_file=None,pattern=None,not_field=None):
 
     paths = [f"{p}/{f}" for f,p in zip(result_files,dirs)]
     return paths
+
+def get_files_from_dir(parent_dir,wanted_file):
+        all_files = os.listdir(parent_dir)
+        wanted_files = []
+        for f in all_files:
+            if wanted_file in f:
+                wanted_files.append(os.path.join(parent_dir,f))
+        return wanted_files
