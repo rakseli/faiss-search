@@ -9,7 +9,7 @@ from random import shuffle
 home = str(Path.home())
 
 class DatabaseDataset(Dataset):
-    def __init__(self,tokenizer,device='cuda',dbfile=f"{home}/data/finnish_text/Eduskunta/eduskunta.db",batch_size=1):
+    def __init__(self,tokenizer,inputs=None,device='cuda',dbfile=f"{home}/data/finnish_text/Eduskunta/eduskunta.db",batch_size=1):
         self.connection = sqlite3.connect(dbfile)
         self.cursor = self.connection.cursor()
         self.document_ids = self.query("SELECT DISTINCT document_id FROM documents")
@@ -19,10 +19,13 @@ class DatabaseDataset(Dataset):
         self.batch_size = batch_size
         self.tokenizer = tokenizer
         self.device = device
-
+        self.inputs = inputs
     def __len__(self) -> int:
         """length method"""
-        return self.n_sentences
+        if self.inputs is not None:
+            return len(self.inputs)
+        else:
+            return self.n_sentences
 
     def query(self, query_string: str) -> List[Tuple]:
         """run a query and return the result"""
@@ -105,16 +108,23 @@ class DatabaseDataset(Dataset):
         return input_data,meta_data
         
     def __getitem__(self, index):
-        """get all movie id indexes for a given user index"""
         if torch.is_tensor(index):
-            index = index.tolist()
-        if isinstance(index, slice):
-            return self.get_slice(index)
-        if isinstance(index, list):
-            return self.get_list(index)
-        if isinstance(index, int):
-            return self.get_single(index)
-        raise ValueError(f"Type of {str(index)} not supported by __getitem()__")
+                index = index.tolist()
+        if self.inputs is None:
+            if isinstance(index, slice):
+                return self.get_slice(index)
+            if isinstance(index, list):
+                return self.get_list(index)
+            if isinstance(index, int):
+                return self.get_single(index)
+            raise ValueError(f"Type of {str(index)} not supported by __getitem()__")
+        else:
+            input_data = {}
+            encoded = self.encode_fn(self.inputs)
+            input_data['attention_mask']=torch.tensor(encoded['attention_mask'])
+            input_data['input_ids']=torch.tensor(encoded['input_ids'])
+            return input_data
+
 
 
 
@@ -130,6 +140,15 @@ def collate(item_list):
     for k in "input_ids", "attention_mask":
         batch[k] = pad_with_zero([item[k] for item in items])
     return batch,meta_dict
+
+
+def collate_input(item_list):
+    """Receives a batch in making. It is a list of dataset items, which are themselves dictionaries with the keys as returned by the dataset
+    since these need to be zero-padded, then this is what we should do now. Is an argument to DataLoader"""
+    batch = {}
+    for k in "input_ids", "attention_mask":
+        batch[k] = pad_with_zero([item[k] for item in item_list])
+    return batch
 
 
 def pad_with_zero(vals):
